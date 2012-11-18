@@ -4,7 +4,7 @@
 
 import argparse
 import ConfigParser
-import os, sys
+import os, sys, re
 
 class Logger:
     I = 0 # I stands for 'Info'
@@ -62,10 +62,10 @@ def getExecutionPath():
     return os.getcwd()
 
 
-def findLocalConfigFile():
+def findLocalConfigFile(path):
     confname = getConfigFileName()
     name = None
-    localpath = getExecutionPath()
+    localpath = path
     while('/' != localpath and None == name):
         if(os.path.isfile(localpath + '/' + confname)):
             name = localpath + '/' + confname
@@ -74,15 +74,38 @@ def findLocalConfigFile():
 
     return name
 
+def resolveTconfFiles():
+    files = []
+    local = findLocalConfigFile(getExecutionPath())
+    if None != local:
+        current = local
+        while None != current:
+            if os.path.isdir(current):
+                    current = current + '/' + getConfigFileName()
+            if os.path.isfile(current):
+                    files.append(current)
+
+            cfg = ConfigParser.ConfigParser()
+            cfg.readfp(open(current))
+            if cfg.has_option('tconf','parent'):
+                current = os.path.expanduser(cfg.get('tconf','parent'))
+            else:
+                current = findLocalConfigFile(os.path.dirname(os.path.dirname(current)))
+
+    for current in [os.path.expanduser('~/.config/tconf.cfg'), '/etc/tconf.cfg']:
+        if os.path.isfile(current):
+            files.append(current)
+
+    return files
+
 
 def main():
-    
     parser = argparse.ArgumentParser(description='Tree configuration tool')
     parser.add_argument('cmd', metavar='command', nargs=1, help='The command to execute. Type \'tconf help\' to get a list.')
     parser.add_argument('args', metavar='arguments', nargs='*', help='Command parameters. Type \'tconf help [cmd]\' to get some help.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Display traces. Useful to understand what happens when it sucks.')
     cmdline_args = parser.parse_args()
-    lg = Logger(False)
+    lg = Logger(cmdline_args.verbose)
     cmd = cmdline_args.cmd[0]
     args = cmdline_args.args
     if 'help' == cmd:
@@ -91,12 +114,28 @@ def main():
 
     if 'get' == cmd or 'g' == cmd:
         if 0 == len(args):
-            lg.log('Hey', lg.I)
-            lg.log('What u doin')
-        #print(get(args[]))
+            lg.log('\"get\" needs at least one argument, the name of the key to be read')
+
+        category = ''
+        key = ''
+        if 1 == len(args):
+            expr = re.compile(r'^([^\/\.]+)[\.|\/](.+)$')
+            result = expr.match(args[0])
+            if None == result:
+                lg.log('the key \"' + args[0] + '\" is ill-formed.')
+
+            category = result.group(1)
+            key = result.group(2)
+
+        else:
+            category = args[0]
+            key = args[1]
+
+
+        print(resolveTconfFiles())        
+        sys.exit(0)
 
     lg.log('\"' + cmd + '\" is unknown. Type tconf help to get a list.')
-
 
 main()
 #config = ConfigFile('roger')
