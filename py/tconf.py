@@ -35,6 +35,18 @@ class Logger:
         if self.F == errlevel:
             sys.exit(1)
 
+def printHelp(command = None):
+    if(None == command):
+        print("""
+Tconf commands
+
+help    : displays this help or a command's one
+get     : reads a value
+set     : sets a value
+""")
+    else:
+        print('To do')
+
 
 def getConfigFileName():
     name = '.tconf'
@@ -64,20 +76,26 @@ def findLocalConfigFile():
 
 
 def main():
-    lg = Logger(False)
+    
     parser = argparse.ArgumentParser(description='Tree configuration tool')
     parser.add_argument('cmd', metavar='command', nargs=1, help='The command to execute. Type \'tconf help\' to get a list.')
     parser.add_argument('args', metavar='arguments', nargs='*', help='Command parameters. Type \'tconf help [cmd]\' to get some help.')
-    parser.add_argument('-v', '--verbose', nargs='*', help='Display traces. Useful to understand what happens when it sucks.')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Display traces. Useful to understand what happens when it sucks.')
     cmdline_args = parser.parse_args()
+    lg = Logger(False)
     cmd = cmdline_args.cmd[0]
     args = cmdline_args.args
-    print(cmd)
+    if 'help' == cmd:
+        printHelp()
+        sys.exit(0)
+
     if 'get' == cmd or 'g' == cmd:
         if 0 == len(args):
             lg.log('Hey', lg.I)
             lg.log('What u doin')
         #print(get(args[]))
+
+    lg.log('\"' + cmd + '\" is unknown. Type tconf help to get a list.')
 
 
 main()
