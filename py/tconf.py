@@ -158,6 +158,26 @@ def main():
 
         sys.exit(0)
 
+    if 'symbolic-projection' == cmd:
+        src = os.path.normpath(os.path.join(getExecutionPath(), args[0]))
+        dst = os.path.normpath(os.path.join(getExecutionPath(), args[1]))
+
+        for root, subFolders, files in os.walk(src):
+            for dir in subFolders:
+                reldir = os.path.relpath(root + os.sep + dir, src)
+                dstdir = os.path.join(dst,reldir)
+                if not os.path.exists(dstdir):
+                    os.makedirs(dstdir)
+            
+            for file in files:
+                origpath = root + os.sep + file
+                relpath = os.path.relpath(origpath, src)
+                dstfile = os.path.join(dst,relpath)
+                if not os.path.exists(dstfile):
+                    os.symlink(origpath, dstfile)
+
+        sys.exit(0)
+
     if 'show-tree' == cmd:
         files = resolveTconfFiles()
         offset = ''
