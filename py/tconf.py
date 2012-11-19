@@ -67,30 +67,43 @@ def findLocalConfigFile(path):
     name = None
     localpath = path
     while('/' != localpath and None == name):
-        if(os.path.isfile(localpath + '/' + confname)):
-            name = localpath + '/' + confname
+        tname = None
+        if os.path.isdir(localpath):
+            tname = localpath + '/' + confname
+        elif os.path.isfile(localpath):
+            tname = localpath
+            localpath = os.path.dirname(localpath)
 
+        if None != tname and os.path.isfile(tname):
+            name = tname
+            
         localpath = os.path.dirname(localpath)
 
     return name
 
-def resolveTconfFiles():
+def resolveTconfFiles(path):
     files = []
-    local = findLocalConfigFile(getExecutionPath())
+    local = findLocalConfigFile(path)
     if None != local:
-        current = local
+        current = local 
         while None != current:
+            current = os.path.normpath(current)
+            okToProcess = False
             if os.path.isdir(current):
-                    current = current + '/' + getConfigFileName()
+                current = current + '/' + getConfigFileName()
             if os.path.isfile(current):
-                    files.append(current)
+                files.append(current)
+                okToProcess = True
 
-            cfg = ConfigParser.ConfigParser()
-            cfg.readfp(open(current))
-            if cfg.has_option('tconf','parent'):
-                current = os.path.expanduser(cfg.get('tconf','parent'))
+            if okToProcess:
+                cfg = ConfigParser.ConfigParser()
+                cfg.readfp(open(current))
+                if cfg.has_option('tconf','parent'):
+                    current = os.path.expanduser(os.path.join(os.path.dirname(current), cfg.get('tconf','parent')))
+                else:
+                    current = findLocalConfigFile(os.path.dirname(os.path.dirname(current)))
             else:
-                current = findLocalConfigFile(os.path.dirname(os.path.dirname(current)))
+                current = None
 
     for current in [os.path.expanduser('~/.config/tconf.cfg'), '/etc/tconf.cfg']:
         if os.path.isfile(current):
@@ -104,10 +117,12 @@ def main():
     parser.add_argument('cmd', metavar='command', nargs=1, help='The command to execute. Type \'tconf help\' to get a list.')
     parser.add_argument('args', metavar='arguments', nargs='*', help='Command parameters. Type \'tconf help [cmd]\' to get some help.')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Display traces. Useful to understand what happens when it sucks.')
+    parser.add_argument('-f', '--file', action='store', default='', help='Force to use the given file or directory.')
     cmdline_args = parser.parse_args()
     lg = Logger(cmdline_args.verbose)
     cmd = cmdline_args.cmd[0]
     args = cmdline_args.args
+    cfile = os.path.normpath(os.path.join(getExecutionPath(), cmdline_args.file))
     if 'help' == cmd:
         printHelp()
         sys.exit(0)
@@ -132,7 +147,24 @@ def main():
             key = args[1]
 
 
-        print(resolveTconfFiles())        
+        config = ConfigParser.ConfigParser()
+        cfiles = resolveTconfFiles(cfile)
+        cfiles.reverse()
+        config.read(cfiles)
+        if(config.has_option(category,key)):
+            print(config.get(category,key))
+        else:
+            lg.log('Key ' + category + '.' + key + ' not found.')
+
+        sys.exit(0)
+
+    if 'show-tree' == cmd:
+        files = resolveTconfFiles()
+        offset = ''
+        for file in files:
+            print(offset + '↳' + file)
+            offset += ' '
+        
         sys.exit(0)
 
     lg.log('\"' + cmd + '\" is unknown. Type tconf help to get a list.')
