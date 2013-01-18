@@ -81,7 +81,7 @@ def findLocalConfigFile(path):
 
     return name
 
-def resolveTconfFiles(path):
+def resolveTconfFiles(path, systemsearch = True):
     files = []
     local = findLocalConfigFile(path)
     if None != local:
@@ -109,8 +109,13 @@ def resolveTconfFiles(path):
         if os.path.isfile(current):
             files.append(current)
 
-    return files
+    if systemsearch:
+        scriptdir = os.path.dirname(os.path.abspath(__file__))
+        systemfiles = resolveTconfFiles(scriptdir, False)
+        for current in systemfiles:
+            files.append(current)
 
+    return files
 
 def main():
     parser = argparse.ArgumentParser(description='Tree configuration tool')
@@ -158,7 +163,7 @@ def main():
 
         sys.exit(0)
 
-    if 'symbolic-projection' == cmd:
+    if 'symbolic-projection' == cmd or 'sp' == cmd:
         src = os.path.normpath(os.path.join(getExecutionPath(), args[0]))
         dst = os.path.normpath(os.path.join(getExecutionPath(), args[1]))
 
